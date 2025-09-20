@@ -1,0 +1,54 @@
+name: Build and Release Printer Presets
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Artillery M1 Pro*.json'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Zip printer presets
+        run: |
+          zip "Printer presets.zip" "Artillery M1 Pro"*.json
+
+      - name: Create import script
+        run: |
+          echo '#!/bin/bash' > import-presets.sh
+          echo 'unzip "Printer presets.zip"' >> import-presets.sh
+          chmod +x import-presets.sh
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .gitignore
+          git commit -m "Add Printer presets.zip to .gitignore"
+          git push
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./Printer presets.zip
+          asset_name: Printer-presets.zip
+          asset_content_type: application/zip
